@@ -1,0 +1,14 @@
+syntax = "proto3";
+package base;
+
+option go_package = "jerroyd.com/ugit/base";
+
+message UgitObject {
+  string name = 1;
+  string oid = 2;
+  string type_ = 3;
+}
+
+message UgitObjectList {
+  repeated UgitObject objects = 1;
+}
