@@ -25,6 +25,26 @@ func isIgnored(path string) bool {
 	return false
 }
 
+func emptyCwd() error {
+	directory := "."
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		full := filepath.Join(directory, entry.Name())
+		if isIgnored(full) {
+			continue
+		}
+		err := os.RemoveAll(full)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func uint64ToByteArray(num uint64) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	err := binary.Write(buf, binary.LittleEndian, num)
@@ -164,6 +184,9 @@ func ReadTree(tree_oid string) error {
 		return err
 	}
 	fmt.Printf("ReadTree %d\n", len(list))
+
+	emptyCwd()
+
 	for _, tuple := range list {
 		fmt.Printf("%s %s\n", tuple.oid, tuple.path)
 		basedir, _ := filepath.Split(tuple.path)
