@@ -270,3 +270,32 @@ func WriteTree(directory string) (oid string, err error) {
 	oid, err = data.HashObject(reader, "tree")
 	return oid, err
 }
+
+func Commit(msg string) (oid string, err error) {
+	oid, err = WriteTree(".")
+	if err != nil {
+		return "", err
+	}
+
+	head, err := data.GetHead()
+	if err != nil {
+		return "", err
+	}
+	commit := CommitInfo{
+		Message: msg,
+		Parent:  head, // Head will be "" for 1st commit
+		Tree:    oid,
+	}
+	buf, err := proto.Marshal(&commit)
+	reader, writer := io.Pipe()
+	go func() {
+		defer writer.Close()
+		writer.Write(buf)
+	}()
+
+	oid, err = data.HashObject(reader, "commit")
+	if err == nil {
+		data.SetHead(oid)
+	}
+	return oid, err
+}

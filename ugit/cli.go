@@ -66,11 +66,24 @@ func readTree(tree string) (err error) {
 	return err
 }
 
+func commit(commitMsg string) error {
+	if commitMsg == "" {
+		return errors.New("must specify a -message")
+	}
+	oid, err := base.Commit(commitMsg)
+	if err != nil {
+		return err
+	}
+	fmt.Println(oid)
+	return nil
+}
+
 const CMD_INIT string = "init"
 const CMD_HASH_OBJECT string = "hash-object"
 const CMD_CAT_FILE string = "cat-file"
 const CMD_WRITE_TREE string = "write-tree"
 const CMD_READ_TREE string = "read-tree"
+const CMD_COMMIT string = "commit"
 
 func main() {
 	// init has no options
@@ -83,6 +96,9 @@ func main() {
 
 	readTreeCmd := flag.NewFlagSet(CMD_READ_TREE, flag.ExitOnError)
 	readTreeTree := readTreeCmd.String("tree", "", "The tree to read")
+
+	CommitCmd := flag.NewFlagSet(CMD_COMMIT, flag.ExitOnError)
+	commitMsg := CommitCmd.String("message", "", "Use the given message as the commit message")
 
 	if len(os.Args) < 2 {
 		fmt.Println("expected a subcommand")
@@ -105,6 +121,9 @@ func main() {
 	case CMD_READ_TREE:
 		readTreeCmd.Parse(os.Args[2:])
 		err = readTree(*readTreeTree)
+	case CMD_COMMIT:
+		CommitCmd.Parse(os.Args[2:])
+		err = commit(*commitMsg)
 	default:
 		err = errors.New(fmt.Sprintf("unknown subcommand %s", os.Args[1]))
 

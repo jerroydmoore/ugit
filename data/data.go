@@ -11,6 +11,7 @@ import (
 )
 
 const GIT_DIR string = ".ugit"
+const OID_LEN int = 40
 
 func assertInitialized() {
 	_, err := os.Stat(GIT_DIR)
@@ -30,6 +31,31 @@ func Initialize() error {
 	}
 	err = os.Mkdir(filepath.Join(GIT_DIR, "objects"), os.FileMode(0755))
 	return err
+}
+
+func GetHead() (oid string, err error) {
+	file := filepath.Join(GIT_DIR, "HEAD")
+	if !checkFileExists(file) {
+		return "", nil
+	}
+	fh, err := os.Open(file)
+	if err != nil {
+		return "", err
+	}
+	defer fh.Close()
+	// read the type off the beginning, and return the at beginning of data.
+	buf := make([]byte, OID_LEN)
+	bytesRead, err := fh.Read(buf)
+	if bytesRead != OID_LEN {
+		return "", errors.New("GetHead failed: unexpected read length")
+	} else if err != nil && err != io.EOF {
+		return "", err
+	}
+	return string(buf[:]), nil
+}
+func SetHead(oid string) error {
+	file := filepath.Join(GIT_DIR, "HEAD")
+	return os.WriteFile(file, []byte(oid), 0660)
 }
 
 func HashObject(fi io.Reader, type_ string) (oid string, err error) {

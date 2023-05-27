@@ -1,10 +1,16 @@
 syntax = "proto3";
 package base;
 
-option go_package = "jerroyd.com/ugit/base";
+option go_package = "jerroyd.com/ugit/base/basepb";
 
 message UgitObject {
   string name = 1;
   string oid = 2;
   string type_ = 3;
+}
+
+message CommitInfo {
+  string message = 1;
+	string tree = 2;
+	string parent = 3;
 }
