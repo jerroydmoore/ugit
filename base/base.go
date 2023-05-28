@@ -56,6 +56,16 @@ func uint64ToByteArray(num uint64) ([]byte, error) {
 
 var sizeOfUint64 uint64 = uint64(unsafe.Sizeof(uint64(1)))
 
+func readUint64(fh *os.File) (uint64, error) {
+	uint64Buf := make([]byte, sizeOfUint64)
+	_, err := fh.Read(uint64Buf)
+	if err != nil {
+		return 0, err
+	}
+	num, _, err := byteArrayToUint64(uint64Buf)
+	return num, err
+}
+
 func byteArrayToUint64(b []byte) (num uint64, size uint64, err error) {
 	buf := bytes.NewBuffer(b)
 	num, err = binary.ReadUvarint(buf)
@@ -89,19 +99,9 @@ func iterTreeEntries(oid string) ([]UgitObject, error) {
 	}
 	defer fh.Close()
 	// read item count
-	uint64Buf := make([]byte, sizeOfUint64)
-	_, err = fh.Read(uint64Buf)
-	if err != nil {
-		return nil, err
-	}
-	count, _, err := byteArrayToUint64(uint64Buf)
+	count, err := readUint64(fh)
 	for i := uint64(0); i < count; i++ {
-		// read length of current item
-		_, err = fh.Read(uint64Buf)
-		if err != nil {
-			return nil, err
-		}
-		len, _, err := byteArrayToUint64(uint64Buf)
+		len, err := readUint64(fh)
 		if err != nil {
 			return nil, err
 		}
@@ -117,12 +117,12 @@ func iterTreeEntries(oid string) ([]UgitObject, error) {
 		}
 		// fmt.Printf("%s %s %s\n", object.Type_, object.Oid, object.Name)
 		objectList = append(objectList, UgitObject{ // Avoid "copy" complaint?
-			Type_: object.Type_,
-			Oid:   object.Oid,
-			Name:  object.Name,
+			Type_: object.GetType_(),
+			Oid:   object.GetOid(),
+			Name:  object.GetName(),
 		})
 	}
-	return objectList, nil
+	return objectList, err
 }
 
 type tupleOidPath struct {
@@ -286,7 +286,12 @@ func Commit(msg string) (oid string, err error) {
 		Parent:  head, // Head will be "" for 1st commit
 		Tree:    oid,
 	}
-	buf, err := proto.Marshal(&commit)
+	commitBuf, err := proto.Marshal(&commit)
+	buf, err := uint64ToByteArray(uint64(len(commitBuf)))
+	if err != nil {
+		return "", err
+	}
+	buf = append(buf, commitBuf...)
 	reader, writer := io.Pipe()
 	go func() {
 		defer writer.Close()
@@ -298,4 +303,29 @@ func Commit(msg string) (oid string, err error) {
 		data.SetHead(oid)
 	}
 	return oid, err
+}
+
+func GetCommit(oid string) (CommitInfo, error) {
+	fh, err := data.GetObject(oid, "commit")
+	if err != nil {
+		return CommitInfo{}, err
+	}
+	defer fh.Close()
+	len, err := readUint64(fh)
+	if err != nil {
+		return CommitInfo{}, err
+	}
+	buf := make([]byte, len)
+	_, err = fh.Read(buf)
+	if err != nil {
+		return CommitInfo{}, err
+	}
+
+	commit := CommitInfo{}
+	err = proto.Unmarshal(buf, &commit)
+	return CommitInfo{
+		Parent:  commit.GetParent(),
+		Message: commit.GetMessage(),
+		Tree:    commit.GetTree(),
+	}, err
 }

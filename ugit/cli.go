@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"strings"
 
 	"log"
 	"os"
@@ -70,11 +71,33 @@ func commit(commitMsg string) error {
 	if commitMsg == "" {
 		return errors.New("must specify a -message")
 	}
-	oid, err := base.Commit(commitMsg)
+	oid, err := base.Commit(strings.TrimSpace(commitMsg))
 	if err != nil {
 		return err
 	}
 	fmt.Println(oid)
+	return nil
+}
+
+func printLog() error {
+	oid, err := data.GetHead()
+	if err != nil {
+		return err
+	}
+	indented := strings.Repeat(" ", 5)
+	for oid != "" {
+		commit, err := base.GetCommit(oid)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("commit %s\n\n", oid)
+		lines := strings.Split(commit.GetMessage(), "\n")
+		for _, line := range lines {
+			fmt.Printf("%s%s\n", indented, line)
+		}
+		fmt.Println()
+		oid = commit.GetParent()
+	}
 	return nil
 }
 
@@ -84,6 +107,7 @@ const CMD_CAT_FILE string = "cat-file"
 const CMD_WRITE_TREE string = "write-tree"
 const CMD_READ_TREE string = "read-tree"
 const CMD_COMMIT string = "commit"
+const CMD_LOG string = "log"
 
 func main() {
 	// init has no options
@@ -99,6 +123,8 @@ func main() {
 
 	CommitCmd := flag.NewFlagSet(CMD_COMMIT, flag.ExitOnError)
 	commitMsg := CommitCmd.String("message", "", "Use the given message as the commit message")
+
+	LogCmd := flag.NewFlagSet(CMD_LOG, flag.ExitOnError)
 
 	if len(os.Args) < 2 {
 		fmt.Println("expected a subcommand")
@@ -124,6 +150,9 @@ func main() {
 	case CMD_COMMIT:
 		CommitCmd.Parse(os.Args[2:])
 		err = commit(*commitMsg)
+	case CMD_LOG:
+		LogCmd.Parse(os.Args[2:])
+		err = printLog()
 	default:
 		err = errors.New(fmt.Sprintf("unknown subcommand %s", os.Args[1]))
 
