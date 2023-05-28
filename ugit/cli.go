@@ -79,8 +79,10 @@ func commit(commitMsg string) error {
 	return nil
 }
 
-func printLog() error {
-	oid, err := data.GetHead()
+func printLog(oid string) (err error) {
+	if oid == "" {
+		oid, err = data.GetHead()
+	}
 	if err != nil {
 		return err
 	}
@@ -125,6 +127,7 @@ func main() {
 	commitMsg := CommitCmd.String("message", "", "Use the given message as the commit message")
 
 	LogCmd := flag.NewFlagSet(CMD_LOG, flag.ExitOnError)
+	logOid := LogCmd.String("oid", "", "The oid of the commit to get logs")
 
 	if len(os.Args) < 2 {
 		fmt.Println("expected a subcommand")
@@ -152,7 +155,7 @@ func main() {
 		err = commit(*commitMsg)
 	case CMD_LOG:
 		LogCmd.Parse(os.Args[2:])
-		err = printLog()
+		err = printLog(*logOid)
 	default:
 		err = errors.New(fmt.Sprintf("unknown subcommand %s", os.Args[1]))
 
